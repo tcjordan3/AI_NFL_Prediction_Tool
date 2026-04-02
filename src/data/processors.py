@@ -243,6 +243,67 @@ class QBProcessor:
         df_clean_advanced = df_clean_advanced.drop(columns=cols_to_drop, errors="ignore")
 
         return df_clean_advanced.reset_index(drop=True)
+    
+
+    def clean_rushing(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Clean PFR rushing data.
+
+        Args:
+            df: Raw DataFrame loaded from PFR rushing CSVs.
+
+        Returns:
+            df_clean_rushing: a cleaned DataFrame at season-player granularity.
+        """
+
+        df_clean_rushing = df.copy()
+
+        # Update malformed column name for pfr_id
+        df_clean_rushing = df_clean_rushing.rename(columns={"-9999": "pfr_id"})
+
+        # Update header names
+        df_clean_rushing.columns = (
+            df_clean_rushing.columns
+            .str.strip()
+            .str.replace(" ", "_")
+            .str.replace("-", "_")
+            .str.replace("%", "_pct")
+            .str.replace("/", "_per_")
+            .str.lower()
+        )
+
+        # Drop rows in which player is not a QB
+        df_clean_rushing = df_clean_rushing[df_clean_rushing["pos"] == "QB"]
+
+        # For players with a 2TM row, keep only 2TM and drop individual team rows
+        players_with_2tm = df_clean_rushing[
+            df_clean_rushing["team"] == "2TM"
+        ][["pfr_id", "season"]].apply(tuple, axis=1)
+
+        df_clean_rushing = df_clean_rushing[
+            ~(
+                df_clean_rushing[["pfr_id", "season"]].apply(tuple, axis=1).isin(players_with_2tm) &
+                (df_clean_rushing["team"] != "2TM")
+            )
+        ]
+
+        # Type casting
+        exclude = ["player", "pfr_id", "team", "pos"]
+        numeric_cols = [c for c in df_clean_rushing.columns if c not in exclude]
+        df_clean_rushing[numeric_cols] = df_clean_rushing[numeric_cols].apply(pd.to_numeric, errors="coerce")
+
+        # Drop rows in which QB has fewer than MIN_RUSH_ATT_QB rushing attempts in the season
+        df_clean_rushing = df_clean_rushing[df_clean_rushing["att"] >= cfg.MIN_RUSH_ATT_QB]
+
+        # Drop unused columns
+        cols_to_drop = ["rk", "awards"]
+        df_clean_rushing = df_clean_rushing.drop(columns=cols_to_drop, errors="ignore")
+
+        # Add rushing_ prefix to columns to avoid duplicates
+        cols_to_prefix = ["att", "yds", "td", "1d", "succ_pct", "lng", "y_per_a", "y_per_g", "a_per_g"]
+        df_clean_rushing = df_clean_rushing.rename(columns={c: f"rushing_{c}" for c in cols_to_prefix if c in df_clean_rushing.columns})
+
+        return df_clean_rushing.reset_index(drop=True)
 
 
     def clean_nflfastr(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -316,6 +377,7 @@ class QBProcessor:
         self,
         passing: pd.DataFrame,
         advanced: pd.DataFrame,
+        rushing: pd.DataFrame,
         nflfastr: pd.DataFrame
     ) -> pd.DataFrame:
         """
@@ -327,6 +389,7 @@ class QBProcessor:
         Args:
             passing: Cleaned PFR passing DataFrame.
             advanced: Cleaned PFR advanced passing DataFrame.
+            rushing: Cleaned PFR rushing DataFrame.
             nflfastr: Aggregated nflfastR DataFrame.
 
         Returns:
@@ -339,6 +402,14 @@ class QBProcessor:
             on=["season", "pfr_id"],
             how="left",
             suffixes=("", "_advanced")
+        )
+
+        # Merge PFR rushing data next
+        df_merged = df_merged.merge(
+            rushing.drop(columns=["player", "team", "pos"], errors="ignore"),
+            on=["season", "pfr_id"],
+            how="left",
+            suffixes=("", "_rushing")
         )
 
         # Add normalized name key for nflfastR merge
@@ -362,8 +433,18 @@ class QBProcessor:
             "cmp_advanced", "att_advanced",
             "ontgt", "ontgt_pct", "plays",
             "yds_advanced", "passatt", "passyds", "rushatt",
-            "rushyds", "passatt.1", "passyds.1"
+            "rushyds", "passatt.1", "passyds.1",
+            "age_rushing", "g_rushing", "gs_rushing"
         ]
+
+        # For QBs with insufficient rushing attempts, set rushing stats to 0
+        rushing_cols = [c for c in df_merged.columns if c.startswith("rushing_") or c == "fmb"]
+
+        for col in rushing_cols:
+            df_merged[col] = df_merged.apply(
+                lambda row: 0 if pd.isna(row[col]) else row[col],
+                axis=1
+            )
 
         df_merged = df_merged.drop(columns=cols_to_drop_after_merge, errors="ignore")
 
@@ -456,12 +537,14 @@ class QBProcessor:
         logger.info("Loading raw data...")
         df_passing = load_pfr_df(years=self.years, path_template=cfg.PFR_QB_PASSING)
         df_advanced = load_pfr_df(years=self.years, path_template=cfg.PFR_QB_ADVANCED_PASSING)
+        df_rushing = load_pfr_df(years=self.years, path_template=cfg.PFR_QB_RUSHING)
         df_nflfastr = self.load_nflfastr()
 
         # Clean data
         logger.info("Cleaning data...")
         df_clean_passing = self.clean_passing(df_passing)
         df_clean_advanced = self.clean_advanced_passing(df_advanced)
+        df_clean_rushing = self.clean_rushing(df_rushing)
         df_clean_nflfastr = self.clean_nflfastr(df_nflfastr)
 
         # Aggregate nflfastR data
@@ -470,7 +553,7 @@ class QBProcessor:
 
         # Merge datasets
         logger.info("Merging datasets...")
-        df_merged = self.merge_qb_data(df_clean_passing, df_clean_advanced, df_aggregated_nflfastr)
+        df_merged = self.merge_qb_data(passing=df_clean_passing, advanced=df_clean_advanced, nflfastr=df_aggregated_nflfastr, rushing=df_clean_rushing)
 
         # Validate final dataset
         logger.info("Validating merged dataset...")
