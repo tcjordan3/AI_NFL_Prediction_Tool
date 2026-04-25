@@ -565,7 +565,7 @@ class QBProcessor:
 
         # Save final dataset
         logger.info("Saving final dataset...")
-        output_path = cfg.OUTPUT_FILE.format(start=self.years.start, end=self.years.stop - 1)
+        output_path = cfg.QB_OUTPUT_DATA_FILE.format(start=self.years.start, end=self.years.stop - 1)
         df_merged.to_csv(output_path, index=False)
         logger.info(f"Final dataset saved to {output_path}")
 
@@ -574,5 +574,5 @@ class QBProcessor:
 
 if __name__ == "__main__":
     processor_qb = QBProcessor(years=cfg.YEARS)
-    df = processor_qb.build_qb_dataset()
-    logger.info(df.head())
+    df_qb = processor_qb.build_qb_dataset()
+    logger.info(df_qb.head())
