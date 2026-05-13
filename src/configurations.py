@@ -50,16 +50,17 @@ QB_TARGET_COLS = {
 
 # Rolling feature mapping (rolling column name to source stat)
 QB_ROLLING_FEATURES_MAP = {
-    "rolling_yds_{n}yr":            "yds",
-    "rolling_td_{n}yr":             "td",
-    "rolling_int_{n}yr":            "int",
-    "rolling_cmp_pct_{n}yr":        "cmp_pct",
-    "rolling_any_per_a_{n}yr":      "any_per_a",
-    "rolling_qb_epa_mean_{n}yr":    "qb_epa_mean",
-    "rolling_cpoe_mean_{n}yr":      "cpoe_mean",
-    "rolling_rushing_yds_{n}yr":    "rushing_yds",
-    "rolling_rushing_td_{n}yr":     "rushing_td",
-    "rolling_gs_{n}yr":             "gs",
+    "rolling_yds_{n}yr":                "yds",
+    "rolling_td_{n}yr":                 "td",
+    "rolling_int_{n}yr":                "int",
+    "rolling_cmp_pct_{n}yr":            "cmp_pct",
+    "rolling_any_per_a_{n}yr":          "any_per_a",
+    "rolling_qb_epa_mean_{n}yr":        "qb_epa_mean",
+    "rolling_cpoe_mean_{n}yr":          "cpoe_mean",
+    "rolling_rushing_yds_{n}yr":        "rushing_yds",
+    "rolling_rushing_td_{n}yr":         "rushing_td",
+    "rolling_gs_{n}yr":                 "gs",
+    "rolling_epa_x_experience_{n}yr":   "epa_x_experience",
 }
 
 # Trend feature mapping (trend column name to source stat)
@@ -88,3 +89,52 @@ QB_YOUNG_AGE = 25
 QB_DECLINE_AGE = 33
 
 QB_OUTPUT_FEATURES_FILE = str(PROCESSED_DIR / "qb_features_{start}_{end}.csv")
+
+
+### base_models.py
+
+ALPHA = 100.0 # For Ridge regression
+
+### base_models.ipynb
+
+# Set of feature columns to use in a training iteration
+QB_FEATURE_COLS = [
+    "gap_is_2",
+    "any_per_a",
+    "qb_epa_mean",
+    "td",
+    "peak_distance",
+    "yoy_yds",
+    "n_dropbacks",
+    "att_per_g",
+    "rolling_td_2yr",
+    "yds",
+    "dropback_confidence",
+    "rolling_any_per_a_2yr",
+    "int",
+    "rolling_yds_2yr",
+    "prime_years_remaining",
+    "rolling_cpoe_mean_2yr",
+    "att",
+    "is_declining",
+    "g",
+    "rolling_gs_2yr",
+    "rolling_int_2yr",
+    "trend_qb_epa_mean_2yr",
+    "trend_cmp_pct_2yr",
+    "gs",
+    "trend_cpoe_mean_2yr",
+    "rolling_qb_epa_mean_2yr",
+    "epa_x_experience",
+    "yoy_epa",
+    "cpoe_mean",
+    "age",
+    "is_young",
+    "rolling_epa_x_experience_2yr",
+    "trend_gs_2yr",
+    "experience",
+    "trend_any_per_a_2yr",
+    "age_squared",
+]
+
+QB_IMPUTER_PATH = "models/checkpoints/qb_imputer.pkl"
