@@ -178,6 +178,33 @@ class QBFeatures:
         self.df["dropback_confidence"] = (self.df["n_dropbacks"] / 600).clip(upper=1.0)
 
 
+    def add_misc_features(self) -> "QBFeatures":
+        """
+        Add any additional features that don't fit into standardized categories.
+        """
+
+        # Attempts per game
+        self.df["att_per_g"] = self.df["att"] / self.df["g"]
+
+        # EPA x experience: bonus for experienced quarterbacks
+        self.df["epa_x_experience"] = self.df["qb_epa_mean"] * self.df["experience"]
+
+        # YoY features: more sensitive to changes in performance
+        self.df["yoy_yds"] = self.df["yds"] - self.df.groupby("pfr_id")["yds"].shift(1)
+        self.df["yoy_epa"] = self.df["qb_epa_mean"] - self.df.groupby("pfr_id")["qb_epa_mean"].shift(1)
+
+        # Sack and hit features
+        self.df["cumulative_sk"] = (
+            self.df.groupby("pfr_id")["sk"]
+            .transform(lambda s: s.shift(1).cumsum())
+        )
+
+        self.df["cumulative_hits"] = (
+            self.df.groupby("pfr_id")["hits"]
+            .transform(lambda s: s.shift(1).cumsum())
+        )
+
+
     # ─── Validation ──────────────────────────────────────────────────────────
 
     def validate_features(self) -> None:
@@ -224,15 +251,6 @@ class QBFeatures:
 
             if null_rate > expected_null_rate * 1.1:  # Allow some buffer
                 print(f"High null rate for target '{col}': {null_rate:.2%} (expected ~{expected_null_rate:.2%})")
-
-        # Check that rolling features are NaN for first season (expected)
-        first_season_mask = self.df["experience"] == 1
-        for n in [2, 3]:
-            for rolling_col in cfg.QB_ROLLING_FEATURES_MAP.keys():
-                col = rolling_col.format(n=n)
-                if col in self.df.columns:
-                    if not self.df.loc[first_season_mask, col].isnull().all():
-                        raise ValueError(f"Rolling feature '{col}' should be NaN for first season")
                     
         # Check for infinite values
         if np.isinf(self.df.select_dtypes(include=[np.number])).any().any():
@@ -290,10 +308,6 @@ class QBFeatures:
         # compute games percentage
         self.df["g_pct"] = self.df["g"] / 17
 
-        # Add rolling features
-        logger.info("Adding rolling features...")
-        self.add_rolling_features()
-
         # Add age curve features
         logger.info("Adding age curve features...")
         add_age_features(
@@ -302,6 +316,14 @@ class QBFeatures:
             young=cfg.QB_YOUNG_AGE,
             decline=cfg.QB_DECLINE_AGE
         )
+
+        # Add miscellaneous features
+        logger.info("Adding miscellaneous features...")
+        self.add_misc_features()
+
+        # Add rolling features
+        logger.info("Adding rolling features...")
+        self.add_rolling_features()
 
         # Add consistency features
         logger.info("Adding consistency features...")
@@ -325,6 +347,24 @@ class QBFeatures:
             self.df.loc[second_year_mask, col] = 0
         for col in consistency_cols:
             self.df.loc[second_year_mask, col] = 0
+
+        # If its a player's first year in the dataset, set all rolling, trend, and consistency columns to 0
+        first_year_mask = self.df["experience"] == 1
+        for n in [2, 3]:
+            for col in cfg.QB_ROLLING_FEATURES_MAP.keys():
+                col_name = col.format(n=n)
+                if col_name in self.df.columns:
+                    self.df.loc[first_year_mask, col_name] = 0
+        for col in trend_cols:
+            self.df.loc[first_year_mask, col] = 0
+        for col in consistency_cols:
+            self.df.loc[first_year_mask, col] = 0
+        for col in "yoy_yds", "yoy_epa":
+            if col in self.df.columns:
+                self.df.loc[first_year_mask, col] = 0
+        for col in ["cumulative_sk", "cumulative_hits"]:
+            if col in self.df.columns:
+                self.df.loc[first_year_mask, col] = 0
 
         # If its a player's third year in the dataset, set 3yr trends/stds to 2yr trends/stds
         third_year_mask = self.df["experience"] == 3
