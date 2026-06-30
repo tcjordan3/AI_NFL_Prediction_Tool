@@ -8,8 +8,6 @@ from sklearn.preprocessing import StandardScaler
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-import configurations as cfg
-
 
 # ─── General Helper Function ───────────────────────────────────────────
 
