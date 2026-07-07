@@ -390,3 +390,6 @@ QB_TARGET_MODEL_PARAMS = {
 
 QB_RIDGE_SENSITIVITY = "ridge_alpha_sensitivity_best.csv"
 QB_RIDGE_COEFFS = "ridge_coefficients_best.png"
+
+##### predict.py #####
+PREDICTIONS_DIR = Path(__file__).resolve().parent / "models" / "predictions"

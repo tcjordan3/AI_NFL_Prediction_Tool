@@ -216,3 +216,6 @@ __init__.py
 
 # Local model data
 src/models/checkpoints/
+
+# Predicton outputs
+src/models/predictions/
