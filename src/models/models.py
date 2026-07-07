@@ -100,7 +100,6 @@ def save(self, path: str | Path) -> None:
         logger.info(f"Model saving complete!")
 
 
-@classmethod
 def load(cls, path: str | Path) -> Self:
     """
     Load a previously saved XGBoostModel from disk
