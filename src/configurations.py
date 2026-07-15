@@ -26,7 +26,7 @@ PFR_QB_RUSHING          = str(RAW_DIR / "rb/rushing/rushing_{year}.csv")
 PFR_QB_NFLFASTR         = str(RAW_DIR / "qb/nflfastr/pbp_{year}.parquet")
 
 # Output File Path
-QB_OUTPUT_DATA_FILE             = str(PROCESSED_DIR / "qb_stats_{start}_{end}.csv")
+QB_OUTPUT_DATA_FILE = str(PROCESSED_DIR / "qb_stats_{start}_{end}.csv")
 
 # Years to load for QB dataset
 YEARS = range(2018, 2026)
