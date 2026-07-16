@@ -2,7 +2,7 @@
 
 Explore historical and predicted NFL player data. Predictions generated via XGBoost
 
-TODO: insert sample
+<img width="1736" height="827" alt="example_data" src="https://github.com/user-attachments/assets/7afcf71f-0470-4ff0-a60e-634fbdaabba1" />
 
 ## Acknowledgements
 
